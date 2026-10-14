@@ -1,0 +1,24 @@
+{
+  "name": "lectura-notas",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "preact": "^11.0.1"
+  },
+  "devDependencies": {
+    "@audio-samples/piano-mp3-velocity8": "^1.0.5",
+    "@preact/preset-vite": "^2.10.6",
+    "@vexflow-fonts/bravura": "^1.0.2",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.4",
+    "vite-plugin-pwa": "^2.0.0",
+    "vitest": "^5.0.4"
+  }
+}

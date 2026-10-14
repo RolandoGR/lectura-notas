@@ -1,0 +1,6 @@
+Muestras de piano: Salamander Grand Piano V3, de Alexander Holm.
+Licencia Creative Commons Atribución 3.0 (CC BY 3.0): http://creativecommons.org/licenses/by/3.0/
+Fuente: https://archive.org/details/SalamanderGrandPianoV3
+
+Modificaciones: una muestra cada tercera menor, de C2 a C6, recortada a 2,4 segundos con
+desvanecimiento, en mono y recomprimida a MP3 (ver scripts/build-piano-samples.sh).

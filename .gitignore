@@ -1,0 +1,7 @@
+node_modules/
+dist/
+dev-dist/
+# material de referencia local: no se versiona
+reference/
+# configuración local de herramientas
+.claude/

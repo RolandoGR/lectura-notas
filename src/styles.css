@@ -1,0 +1,1624 @@
+/* Tema oscuro por defecto, con color en los acentos; el claro se activa desde Ajustes. */
+:root {
+  --bg: #14161b;
+  --surface: #1f222a;
+  --surface-2: #2a2e38;
+  --line: #363b48;
+  --ink: #f3f1ea;
+  --muted: #9aa1ae;
+  --accent: #4cb4f5;
+  --accent-ink: #06141f;
+  --band: rgba(45, 170, 190, 0.34);
+  --ok: #3fd07a;
+  --bad: #ff5f6b;
+  --hint: #ffc247;
+  --star: #ffd23f;
+  --key-white: #f4f1ea;
+  --key-ink: #3b3e46;
+  --key-black: #0d0f13;
+  --pattern: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='104' height='104'%3E%3Cg fill='%23ffffff' fill-opacity='0.04'%3E%3Cellipse cx='22' cy='34' rx='5.2' ry='3.7' transform='rotate(-20 22 34)'/%3E%3Crect x='25.8' y='13' width='1.6' height='21'/%3E%3Cellipse cx='74' cy='86' rx='5.2' ry='3.7' transform='rotate(-20 74 86)'/%3E%3Crect x='77.8' y='65' width='1.6' height='21'/%3E%3C/g%3E%3C/svg%3E");
+
+  /* Un color por modo y por ejercicio */
+  --smart: #ff8f3f;
+  --manual: #6c93ff;
+  --daily: #2fc98a;
+  --fixed: #4cb4f5;
+  --moving: #22c7c7;
+  --memory: #b68bff;
+
+  /* Un color por nombre de nota, de Do a Si */
+  --note-0: #ff6b6b;
+  --note-1: #ff9f43;
+  --note-2: #ffd43b;
+  --note-3: #5fd068;
+  --note-4: #27c9c9;
+  --note-5: #5c9dff;
+  --note-6: #b68bff;
+
+  /* Curvas de movimiento; las de muelle se sustituyen más abajo donde el navegador admite linear() */
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --spring: cubic-bezier(0.3, 1.5, 0.5, 1);
+  --spring-soft: cubic-bezier(0.25, 1.2, 0.4, 1);
+
+  color-scheme: dark;
+}
+
+:root[data-theme='light'] {
+  --bg: #f3f0e8;
+  --surface: #ffffff;
+  --surface-2: #ebe7dc;
+  --line: #d9d3c5;
+  --ink: #22242a;
+  --muted: #6b6f78;
+  --accent: #1c8fdc;
+  --accent-ink: #ffffff;
+  --band: rgba(40, 160, 185, 0.26);
+  --ok: #22a85a;
+  --bad: #dc4350;
+  --hint: #d9950b;
+  --star: #f2b705;
+  --key-white: #ffffff;
+  --key-ink: #3b3e46;
+  --key-black: #22242a;
+  --pattern: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='104' height='104'%3E%3Cg fill='%23000000' fill-opacity='0.045'%3E%3Cellipse cx='22' cy='34' rx='5.2' ry='3.7' transform='rotate(-20 22 34)'/%3E%3Crect x='25.8' y='13' width='1.6' height='21'/%3E%3Cellipse cx='74' cy='86' rx='5.2' ry='3.7' transform='rotate(-20 74 86)'/%3E%3Crect x='77.8' y='65' width='1.6' height='21'/%3E%3C/g%3E%3C/svg%3E");
+  color-scheme: light;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#app {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--bg) var(--pattern);
+  color: var(--ink);
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  font-size: 16px;
+  line-height: 1.4;
+  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior: none;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: default;
+}
+
+h1 {
+  margin: 0;
+  font-size: 1.35rem;
+}
+
+.icon {
+  width: 22px;
+  height: 22px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* Páginas de menú */
+
+.page {
+  min-height: 100%;
+  max-width: 640px;
+  margin: 0 auto;
+  padding: env(safe-area-inset-top) max(16px, env(safe-area-inset-right)) calc(24px + env(safe-area-inset-bottom))
+    max(16px, env(safe-area-inset-left));
+}
+
+.page-wide {
+  max-width: 980px;
+}
+
+.page-header,
+.home-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 0;
+}
+
+.home-header {
+  justify-content: space-between;
+}
+
+.brand {
+  font-size: 1.6rem;
+  letter-spacing: 0.02em;
+}
+
+.brand span {
+  color: var(--accent);
+}
+
+.page-body {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.icon-button {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  flex: none;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  background: var(--surface);
+}
+
+/* Tarjetas de modo: cada una con su color */
+
+.tone-smart {
+  --tone: var(--smart);
+}
+
+.tone-manual {
+  --tone: var(--manual);
+}
+
+.tone-daily {
+  --tone: var(--daily);
+}
+
+.tone-fixed {
+  --tone: var(--fixed);
+}
+
+.tone-moving {
+  --tone: var(--moving);
+}
+
+.tone-memory {
+  --tone: var(--memory);
+}
+
+.cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: 14px;
+}
+
+.card {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  grid-template-rows: auto 1fr auto;
+  grid-template-areas:
+    'icon title'
+    'icon text'
+    'action action';
+  column-gap: 14px;
+  row-gap: 2px;
+  align-items: center;
+  padding: 16px 16px 0;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--tone) 45%, var(--line));
+  border-radius: 20px;
+  background: linear-gradient(160deg, color-mix(in srgb, var(--tone) 16%, var(--surface)), var(--surface) 70%);
+  text-align: left;
+}
+
+.card-icon {
+  grid-area: icon;
+  display: grid;
+  place-items: center;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: var(--tone);
+  color: #10131a;
+}
+
+.card-icon .icon {
+  width: 28px;
+  height: 28px;
+}
+
+.card-title {
+  grid-area: title;
+  align-self: end;
+  font-size: 1.15rem;
+  font-weight: 700;
+}
+
+.card-text {
+  grid-area: text;
+  align-self: start;
+}
+
+.card-action {
+  grid-area: action;
+  margin: 14px -16px 0;
+  padding: 11px 16px;
+  background: var(--tone);
+  color: #10131a;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.card-text,
+.hint {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.hint {
+  margin: 6px 0 0;
+}
+
+.hint-warn {
+  color: var(--bad);
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.field-label {
+  margin: 0;
+  font-size: 0.8rem;
+  font-weight: 650;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.segmented {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.segment {
+  flex: 1 1 auto;
+  min-height: 44px;
+  padding: 8px 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+}
+
+.segment-on {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-weight: 650;
+}
+
+.segment:disabled {
+  opacity: 0.4;
+}
+
+.toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+}
+
+.toggle-text {
+  display: flex;
+  flex-direction: column;
+}
+
+.toggle .hint {
+  margin: 0;
+}
+
+.toggle input {
+  width: 24px;
+  height: 24px;
+  flex: none;
+  accent-color: var(--accent);
+}
+
+.presets,
+.note-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.chip {
+  min-height: 38px;
+  padding: 6px 12px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface);
+  font-size: 0.9rem;
+}
+
+.note-chip {
+  min-width: 58px;
+  border-color: color-mix(in srgb, var(--chip) 55%, var(--line));
+}
+
+.note-chip.chip-on {
+  border-color: var(--chip);
+  background: var(--chip);
+  color: #10131a;
+  font-weight: 650;
+}
+
+.primary,
+.secondary,
+.danger {
+  min-height: 52px;
+  padding: 12px 16px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--surface);
+  font-weight: 650;
+}
+
+.primary {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-size: 1.05rem;
+  letter-spacing: 0.02em;
+}
+
+.primary:disabled {
+  opacity: 0.45;
+}
+
+.danger {
+  border-color: var(--bad);
+  color: var(--bad);
+}
+
+.confirm {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* Modo inteligente */
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px;
+  border: 1px solid color-mix(in srgb, var(--tone) 40%, var(--line));
+  border-radius: 18px;
+  background: var(--surface);
+}
+
+.panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.ribbon {
+  padding: 4px 12px;
+  border-radius: 999px;
+  background: var(--tone);
+  color: #10131a;
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.panel-note {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.staff.staff-mini {
+  width: 100%;
+  height: 120px;
+}
+
+.stages {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.stage {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1px solid color-mix(in srgb, var(--tone) 45%, var(--line));
+  border-radius: 16px;
+  background: linear-gradient(100deg, color-mix(in srgb, var(--tone) 14%, var(--surface)), var(--surface) 65%);
+  text-align: left;
+}
+
+.stage-number {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--tone);
+  color: #10131a;
+  font-weight: 800;
+}
+
+.stage-body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.stage-title {
+  font-weight: 650;
+}
+
+.stage-hint {
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+.star {
+  color: var(--line);
+}
+
+.star-on {
+  color: var(--star);
+}
+
+.choices {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 12px;
+}
+
+.choice {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-height: 150px;
+  padding: 12px;
+  border: 2px solid var(--line);
+  border-radius: 18px;
+  background: var(--surface);
+}
+
+.choice-on {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 16%, var(--surface));
+}
+
+.choice-name {
+  font-weight: 650;
+}
+
+/* Resultados */
+
+.results {
+  padding-top: 32px;
+  text-align: center;
+}
+
+.results-context {
+  margin: 0;
+  color: var(--muted);
+}
+
+.results-title {
+  font-size: 1.9rem;
+  color: var(--accent);
+}
+
+.results-stars .stars {
+  font-size: 3rem;
+  line-height: 1;
+}
+
+.stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  margin: 0;
+}
+
+.stats > div {
+  padding: 10px 6px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--surface);
+}
+
+.stats dt {
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+
+.stats dd {
+  margin: 0;
+  font-size: 1.3rem;
+  font-weight: 700;
+}
+
+.stat-ok {
+  color: var(--ok);
+}
+
+.stat-bad {
+  color: var(--bad);
+}
+
+.chart {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--surface);
+}
+
+.chart-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.8rem;
+}
+
+.chart-value {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.chart-track {
+  display: flex;
+  align-items: flex-end;
+  width: 100%;
+  max-width: 34px;
+  height: 64px;
+  border-radius: 8px;
+  background: var(--surface-2);
+  overflow: hidden;
+}
+
+.chart-bar {
+  width: 100%;
+  border-radius: 8px;
+  transform-origin: bottom;
+}
+
+.chart-empty .chart-bar {
+  display: none;
+}
+
+.chart-empty .chart-name {
+  color: var(--muted);
+}
+
+.chart-name {
+  font-weight: 650;
+}
+
+.review {
+  margin: 0;
+}
+
+.results-actions {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 8px;
+}
+
+/* Ejercicio */
+
+.play {
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: manipulation;
+}
+
+.hud {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  grid-template-areas:
+    'close title stats'
+    'progress progress progress';
+  align-items: center;
+  gap: 8px 12px;
+  padding: 10px 12px 6px;
+}
+
+.hud > .icon-button {
+  grid-area: close;
+}
+
+.hud-title {
+  grid-area: title;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--muted);
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hud-stats {
+  grid-area: stats;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.lives {
+  color: var(--bad);
+  letter-spacing: 2px;
+}
+
+.lives-lost {
+  color: var(--line);
+}
+
+.misses {
+  color: var(--bad);
+  font-weight: 650;
+}
+
+.clock {
+  font-weight: 650;
+}
+
+.clock-low {
+  color: var(--bad);
+}
+
+/* Barra de progreso con el marcador dentro */
+.progress {
+  grid-area: progress;
+  position: relative;
+  justify-self: center;
+  width: min(70%, 320px);
+  height: 22px;
+  border: 2px solid var(--ink);
+  border-radius: 999px;
+  background: var(--surface-2);
+  overflow: hidden;
+}
+
+.progress-fill {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, var(--accent), color-mix(in srgb, var(--accent) 60%, var(--moving)));
+  transform-origin: left;
+  transition: transform 0.6s var(--spring-soft);
+}
+
+.progress-text {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-size: 0.78rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.staff-area {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 4px;
+}
+
+.staff {
+  width: 100%;
+  height: 100%;
+  /* la franja de lectura se sale del dibujo para ocupar toda la altura */
+  overflow: visible;
+}
+
+.staff-line {
+  stroke: var(--ink);
+  stroke-width: 1;
+}
+
+.ledger {
+  stroke: currentColor;
+  stroke-width: 1.2;
+}
+
+.glyph {
+  font-family: Bravura, serif;
+  font-size: 40px;
+  fill: currentColor;
+}
+
+.clef {
+  color: var(--ink);
+}
+
+.stem {
+  stroke: currentColor;
+  stroke-width: 1.3;
+}
+
+.note {
+  color: var(--ink);
+  transition: color 0.18s ease-out;
+}
+
+.note-wrong {
+  color: var(--bad);
+}
+
+.note-given {
+  color: var(--muted);
+}
+
+.band {
+  fill: var(--band);
+  transition: transform 0.38s var(--spring-soft);
+}
+
+.notes-page {
+  transition:
+    opacity 0.15s ease-in,
+    transform 0.15s ease-in;
+}
+
+.notes-leaving {
+  opacity: 0;
+  transform: translateX(-8px);
+}
+
+.note-label {
+  animation: fade-in 0.2s ease-out both;
+}
+
+/* Burbuja con el nombre de la nota respondida */
+.bubble {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: bubble-in 0.5s var(--spring) both;
+}
+
+.bubble-text {
+  fill: #10131a;
+  font-family: system-ui, sans-serif;
+  font-size: 8px;
+  font-weight: 700;
+}
+
+.badge {
+  stroke: var(--bg);
+  stroke-width: 0.8;
+}
+
+.badge-ok {
+  fill: var(--ok);
+}
+
+.badge-bad {
+  fill: var(--bad);
+}
+
+.badge-mark {
+  fill: none;
+  stroke: #fff;
+  stroke-width: 1.1;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.note-label,
+.reference-label {
+  fill: currentColor;
+  font-family: system-ui, sans-serif;
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.reference {
+  color: var(--muted);
+}
+
+.reference-label {
+  font-size: 8px;
+}
+
+.countdown {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: bubble-in 0.5s var(--spring) both;
+}
+
+.countdown circle {
+  fill: var(--memory);
+}
+
+.countdown text {
+  fill: #10131a;
+  font-family: system-ui, sans-serif;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.feedback {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 2px;
+  text-align: center;
+  color: var(--muted);
+  font-weight: 600;
+  pointer-events: none;
+}
+
+.feedback span {
+  display: inline-block;
+  animation: fade-in 0.15s ease-out both;
+}
+
+/* Teclado de una octava */
+
+.keyboard {
+  position: relative;
+  z-index: 1;
+  /* tapa la franja de lectura, que baja hasta aquí, también en los huecos y márgenes */
+  background: var(--bg);
+  box-shadow: 0 0 0 12px var(--bg);
+  display: flex;
+  flex: none;
+  height: clamp(140px, 32dvh, 260px);
+  margin: 6px 8px 10px;
+  gap: 4px;
+  transition: opacity 0.2s ease-out;
+}
+
+/* En pausa las teclas se apagan; no se usa transparencia para que no se vea la franja por detrás. */
+.keyboard-locked {
+  pointer-events: none;
+}
+
+.keyboard-locked .key-white {
+  background: color-mix(in srgb, var(--key-white) 42%, var(--bg));
+  color: color-mix(in srgb, var(--key-ink) 55%, var(--bg));
+}
+
+.keyboard-locked .interval-key {
+  color: var(--muted);
+}
+
+.keyboard-locked .key-dot {
+  opacity: 0.5;
+}
+
+/* El color de acierto o fallo aparece al instante y se va despacio. */
+.key,
+.interval-key {
+  transition:
+    background-color 0.35s ease-out,
+    border-color 0.35s ease-out,
+    color 0.35s ease-out,
+    transform 0.07s ease-out;
+}
+
+.key-ok,
+.key-bad,
+.key-hint {
+  transition-duration: 0s, 0s, 0s, 0.07s;
+}
+
+.key-white:active,
+.interval-key:active {
+  transform: translateY(3px);
+}
+
+.key-black:active {
+  transform: translateY(2px);
+}
+
+.key {
+  padding: 0;
+  border: 1px solid var(--line);
+  touch-action: none;
+}
+
+.key-white {
+  flex: 1;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding-bottom: 12px;
+  border-radius: 4px 4px 12px 12px;
+  background: var(--key-white);
+  color: var(--key-ink);
+  box-shadow: inset 0 -6px 0 rgba(0, 0, 0, 0.1);
+}
+
+.key-black {
+  position: absolute;
+  top: 0;
+  height: 58%;
+  border-color: var(--key-black);
+  border-radius: 0 0 8px 8px;
+  background: var(--key-black);
+  box-shadow: inset 0 -5px 0 rgba(255, 255, 255, 0.12);
+}
+
+/* Sin alteraciones las teclas negras no se usan: se acortan para no estorbar. */
+.key-inert {
+  height: 30%;
+}
+
+.key-label {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.95rem;
+  font-weight: 700;
+  pointer-events: none;
+}
+
+.key-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+
+.key.key-ok,
+.interval-key.key-ok {
+  border-color: var(--ok);
+  background: var(--ok);
+  color: #fff;
+}
+
+.key.key-bad,
+.interval-key.key-bad {
+  border-color: var(--bad);
+  background: var(--bad);
+  color: #fff;
+}
+
+.key.key-hint,
+.interval-key.key-hint {
+  border-color: var(--hint);
+  background: var(--hint);
+  color: #10131a;
+}
+
+.interval-keys {
+  position: relative;
+  z-index: 1;
+  background: var(--bg);
+  box-shadow: 0 0 0 14px var(--bg);
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(72px, 1fr));
+  flex: none;
+  gap: 8px;
+  margin: 6px 10px 14px;
+  transition: opacity 0.2s ease-out;
+}
+
+.interval-key {
+  min-height: 72px;
+  border: 1px solid color-mix(in srgb, var(--accent) 40%, var(--line));
+  border-radius: 14px;
+  background: var(--surface);
+  font-size: 1.4rem;
+  font-weight: 700;
+  touch-action: none;
+}
+
+/* Animaciones */
+
+.page,
+.play {
+  animation: screen-in 0.24s ease-out both;
+}
+
+.card,
+.segment,
+.chip,
+.stage,
+.choice,
+.primary,
+.secondary,
+.danger,
+.icon-button {
+  transition:
+    background-color 0.15s ease-out,
+    border-color 0.15s ease-out,
+    color 0.15s ease-out,
+    transform 0.08s ease-out;
+}
+
+.card:active,
+.segment:active,
+.chip:active,
+.stage:active,
+.choice:active,
+.primary:active,
+.secondary:active,
+.danger:active,
+.icon-button:active {
+  transform: scale(0.97);
+}
+
+.results-stars .star-on {
+  display: inline-block;
+  animation: star-pop 0.75s var(--spring) both;
+  animation-delay: calc(0.2s + var(--i, 0) * 0.16s);
+}
+
+.stats > div {
+  animation: screen-in 0.3s ease-out both;
+}
+
+.stats > div:nth-child(2) {
+  animation-delay: 0.05s;
+}
+
+.stats > div:nth-child(3) {
+  animation-delay: 0.1s;
+}
+
+.stats > div:nth-child(4) {
+  animation-delay: 0.15s;
+}
+
+.chart-bar {
+  animation: bar-grow 0.8s var(--spring-soft) both;
+  animation-delay: calc(0.3s + var(--i, 0) * 0.05s);
+}
+
+/* La tecla respondida se hunde aunque el navegador no aplique :active al tocar. */
+.key.key-ok,
+.key.key-bad,
+.interval-key.key-ok,
+.interval-key.key-bad {
+  animation: key-press 0.5s var(--spring);
+}
+
+@keyframes key-press {
+  from {
+    transform: translateY(5px) scaleY(0.97);
+  }
+}
+
+@keyframes screen-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes bubble-in {
+  from {
+    opacity: 0;
+    transform: scale(0.4);
+  }
+}
+
+@keyframes bar-grow {
+  from {
+    transform: scaleY(0);
+  }
+}
+
+@keyframes star-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.2) rotate(-25deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-delay: 0s !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Teléfono en horizontal: pentagrama grande y teclado bajo a todo el ancho. */
+@media (orientation: landscape) and (max-height: 520px) {
+  .hud {
+    grid-template-columns: auto 1fr min(40vw, 320px) 1fr;
+    grid-template-areas: 'close title progress stats';
+    padding: 6px 12px 0;
+  }
+
+  .hud-stats {
+    justify-self: end;
+  }
+
+  .progress {
+    width: 100%;
+  }
+
+  .keyboard {
+    height: 27dvh;
+    margin-bottom: 6px;
+  }
+
+  .key-label {
+    flex-direction: row;
+  }
+
+  .feedback {
+    top: 0;
+    bottom: auto;
+    font-size: 0.9rem;
+  }
+
+  .interval-key {
+    min-height: 52px;
+  }
+}
+
+/* ---------- Sensación de juego ----------
+   Lo que entra, frena suave; lo que celebra un acierto, rebota como un muelle; los errores solo
+   se sacuden un poco. Las curvas de muelle usan linear(), con una curva simple de reserva. */
+
+@supports (animation-timing-function: linear(0, 1)) {
+  :root {
+    --spring: linear(0, 0.095, 0.319, 0.586, 0.835, 1.027, 1.148, 1.2, 1.199, 1.163, 1.11, 1.056, 1.011, 0.979, 0.962, 0.958, 0.963, 0.972, 0.984, 0.994, 1.002, 1.007, 1.009, 1.008, 1.007, 1.004, 1);
+    --spring-soft: linear(0, 0.042, 0.145, 0.28, 0.425, 0.565, 0.691, 0.798, 0.883, 0.949, 0.995, 1.026, 1.044, 1.053, 1.054, 1.051, 1.044, 1.037, 1.029, 1.022, 1.015, 1.01, 1.005, 1.002, 1, 0.998, 1);
+  }
+}
+
+/* Las notas de un grupo caen una tras otra */
+.note {
+  animation: note-in 0.32s var(--ease-out) both;
+  animation-delay: calc(var(--i, 0) * 45ms);
+}
+
+.notes-stream .note,
+.staff-mini .note {
+  animation: none;
+}
+
+.staff-mini .note-given {
+  color: var(--smart);
+}
+
+/* Acierto: la nota da un pequeño salto y suelta una onda. Fallo: se sacude. */
+.note-shape {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+.note-correct .note-shape {
+  animation: note-pop 0.55s var(--spring);
+}
+
+.note-wrong .note-shape {
+  animation: note-shake 0.4s ease-out;
+}
+
+.ripple {
+  fill: none;
+  stroke-width: 1.4;
+  transform-box: fill-box;
+  transform-origin: center;
+  pointer-events: none;
+  animation: ripple 0.65s var(--ease-out) both;
+}
+
+/* La franja late mientras el pentagrama espera la respuesta */
+.band-waiting {
+  animation: band-pulse 1.1s ease-in-out infinite;
+}
+
+.progress-text {
+  animation: count-pop 0.35s var(--spring);
+}
+
+.streak {
+  padding: 2px 10px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--smart) 22%, transparent);
+  color: var(--smart);
+  font-size: 0.85rem;
+  font-weight: 700;
+  animation: count-pop 0.35s var(--spring);
+}
+
+.streak-big {
+  background: var(--smart);
+  color: #10131a;
+  animation: streak-big 0.7s var(--spring);
+}
+
+.key {
+  transform-origin: top;
+}
+
+.key.key-hint,
+.interval-key.key-hint {
+  animation: hint-pulse 0.5s ease-out;
+}
+
+.results-stars .star-on {
+  text-shadow: 0 0 18px color-mix(in srgb, var(--star) 55%, transparent);
+}
+
+/* Botones: se hunden al instante y vuelven con rebote */
+.card,
+.segment,
+.chip,
+.stage,
+.choice,
+.primary,
+.secondary,
+.danger,
+.icon-button {
+  transition:
+    background-color 0.15s ease-out,
+    border-color 0.15s ease-out,
+    color 0.15s ease-out,
+    transform 0.4s var(--spring);
+}
+
+.card:active,
+.segment:active,
+.chip:active,
+.stage:active,
+.choice:active,
+.primary:active,
+.secondary:active,
+.danger:active,
+.icon-button:active {
+  transform: scale(0.96);
+  transition-duration: 0.15s, 0.15s, 0.15s, 0.07s;
+}
+
+/* Las tarjetas y los ejercicios entran en cascada */
+.cards .card,
+.stages .stage {
+  animation: screen-in 0.45s var(--ease-out) both;
+}
+
+.cards .card:nth-child(2),
+.stages .stage:nth-child(2) {
+  animation-delay: 70ms;
+}
+
+.cards .card:nth-child(3),
+.stages .stage:nth-child(3) {
+  animation-delay: 140ms;
+}
+
+.confetti {
+  position: fixed;
+  inset: 0;
+  z-index: 5;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.confetti span {
+  position: absolute;
+  top: -20px;
+  width: 9px;
+  height: 14px;
+  border-radius: 2px;
+  animation: confetti-fall linear both;
+}
+
+@keyframes note-in {
+  from {
+    opacity: 0;
+    transform: translateY(-7px);
+  }
+}
+
+@keyframes note-pop {
+  from {
+    transform: scale(1.4);
+  }
+}
+
+@keyframes note-shake {
+  20% {
+    transform: translateX(-2.5px);
+  }
+
+  45% {
+    transform: translateX(2px);
+  }
+
+  70% {
+    transform: translateX(-1.2px);
+  }
+}
+
+@keyframes ripple {
+  from {
+    opacity: 0.9;
+    transform: scale(0.6);
+  }
+
+  to {
+    opacity: 0;
+    transform: scale(3.2);
+  }
+}
+
+@keyframes band-pulse {
+  50% {
+    opacity: 0.45;
+  }
+}
+
+@keyframes count-pop {
+  from {
+    transform: scale(1.3);
+  }
+}
+
+@keyframes streak-big {
+  from {
+    transform: scale(1.9) rotate(-8deg);
+  }
+}
+
+@keyframes hint-pulse {
+  from {
+    filter: brightness(1.6);
+  }
+}
+
+@keyframes confetti-fall {
+  to {
+    transform: translate(var(--drift), 112vh) rotate(var(--spin));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .confetti {
+    display: none;
+  }
+
+  .band-waiting {
+    animation: none;
+  }
+}
+
+/* ---------- Metrónomo, pentagrama doble, canciones, sesión y progreso ---------- */
+
+:root {
+  --session: #ff78b0;
+  --songs: #b68bff;
+  --progress: #27c9c9;
+  --pulse: #ffb43f;
+}
+
+.tone-session {
+  --tone: var(--session);
+}
+
+.tone-songs {
+  --tone: var(--songs);
+}
+
+.tone-progress {
+  --tone: var(--progress);
+}
+
+.tone-pulse {
+  --tone: var(--pulse);
+}
+
+/* Franja fija del metrónomo: da un destello en cada pulso */
+.band-beat {
+  fill: color-mix(in srgb, var(--pulse) 30%, transparent);
+  transition: none;
+  animation: beat-flash 0.3s ease-out;
+}
+
+/* Línea que une los dos pentagramas del piano */
+.system-line {
+  stroke-width: 1.6;
+}
+
+/* Botones sobre el pentagrama: repetir el grupo y cambiar entre teclado y micrófono */
+.staff-tools {
+  position: absolute;
+  top: 8px;
+  right: 12px;
+  z-index: 1;
+  display: flex;
+  gap: 8px;
+}
+
+.tool-replay {
+  color: var(--memory);
+  border-color: color-mix(in srgb, var(--memory) 60%, var(--line));
+}
+
+.tool-on {
+  border-color: var(--bad);
+  background: var(--bad);
+  color: #fff;
+  animation: mic-live 1.4s ease-in-out infinite;
+}
+
+.stage:disabled {
+  opacity: 0.45;
+}
+
+.stage-number .icon {
+  width: 20px;
+  height: 20px;
+}
+
+/* Mapa de dominio */
+.note-button {
+  cursor: pointer;
+}
+
+.note-hit {
+  fill: transparent;
+}
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+.legend-swatch {
+  width: 12px;
+  height: 12px;
+  margin-left: 6px;
+  border-radius: 50%;
+}
+
+.note-detail {
+  margin: 0;
+  min-height: 2.8em;
+}
+
+.chart-weeks {
+  grid-template-columns: repeat(var(--columns), 1fr);
+}
+
+.chart-weeks .chart-value {
+  font-size: 0.72rem;
+  white-space: nowrap;
+}
+
+@keyframes beat-flash {
+  from {
+    fill: color-mix(in srgb, var(--pulse) 75%, transparent);
+  }
+}
+
+@keyframes mic-live {
+  50% {
+    box-shadow: 0 0 0 6px color-mix(in srgb, var(--bad) 30%, transparent);
+  }
+}
+
+/* ---------- Canciones propias y copia de seguridad ---------- */
+
+.song-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.song-row .stage {
+  flex: 1;
+  min-width: 0;
+}
+
+.song-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--surface);
+}
+
+.song-form summary {
+  cursor: pointer;
+  font-weight: 650;
+}
+
+.song-form[open] summary {
+  margin-bottom: 10px;
+}
+
+.text-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 10px;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.text-field input,
+.text-field textarea {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--bg);
+  color: var(--ink);
+  font: inherit;
+}
+
+.text-field textarea {
+  font-family: ui-monospace, 'Cascadia Mono', Consolas, monospace;
+  resize: vertical;
+}
+
+.text-field input:focus,
+.text-field textarea:focus {
+  border-color: var(--accent);
+  outline: none;
+}
+
+.file-button {
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+}
+
+.file-button input {
+  display: none;
+}
