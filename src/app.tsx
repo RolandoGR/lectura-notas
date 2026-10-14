@@ -76,6 +76,15 @@ const SYNC_DELAY_MS = 2500;
 // Pantalla a la que se vuelve al salir de un ejercicio o de sus resultados, según su origen.
 const EXIT_SCREEN = { journey: 'journey', manual: 'manual', song: 'songs', daily: 'home', session: 'home' } as const;
 
+/** Nivel de una pantalla: 0 el inicio, 1 los menús y 2 lo que se abre desde un menú. */
+function screenDepth(screen: Screen): number {
+  if (screen.name === 'home') return 0;
+  if (screen.name === 'play' || screen.name === 'results') {
+    return EXIT_SCREEN[screen.run.source.type] === 'home' ? 1 : 2;
+  }
+  return screen.name === 'choose' ? 2 : 1;
+}
+
 let runCounter = 0;
 const randomSeed = () => Math.floor(Math.random() * 2 ** 31);
 
@@ -213,10 +222,13 @@ export function App() {
   const play = (run: Omit<Run, 'id'>) => setScreen({ name: 'play', run: { ...run, id: ++runCounter } });
 
   // --- Botón Atrás del teléfono (y del navegador) ------------------------------------------
-  // Mientras no se está en el inicio hay una entrada propia en el historial: «atrás» la consume y
-  // la app vuelve a la pantalla anterior en lugar de cerrarse. Al llegar al inicio se retira.
-  const historyGuard = useRef(false);
-  const ignoreNextPop = useRef(false);
+  // El historial tiene una entrada por nivel de profundidad (inicio, menú, ejercicio): «atrás»
+  // consume una y la app sube un nivel en lugar de cerrarse. Las entradas solo se crean al entrar
+  // a un nivel más hondo tocando algo; Chrome se salta las que una página crea por su cuenta, así
+  // que nunca se vuelven a crear tras un «atrás». Al subir de nivel con los botones de la app se
+  // retroceden las que sobran.
+  const depthRef = useRef(0);
+  const ignoredPops = useRef(0);
   const goBack = () => {
     if (screen.name === 'play') {
       saveProgress(progress);
@@ -232,23 +244,24 @@ export function App() {
   const goBackRef = useRef(goBack);
   goBackRef.current = goBack;
   useEffect(() => {
-    const atHome = screen.name === 'home';
-    if (!atHome && !historyGuard.current) {
-      history.pushState({ lecturaNotas: true }, '');
-      historyGuard.current = true;
-    } else if (atHome && historyGuard.current) {
-      historyGuard.current = false;
-      ignoreNextPop.current = true;
-      history.back();
+    const depth = screenDepth(screen);
+    const change = depth - depthRef.current;
+    if (change > 0) {
+      for (let i = 0; i < change; i++) history.pushState({ lecturaNotas: depthRef.current + i + 1 }, '');
+    } else if (change < 0) {
+      ignoredPops.current++;
+      history.go(change);
     }
-  }, [screen.name]);
+    depthRef.current = depth;
+  }, [screen]);
   useEffect(() => {
     const onPop = () => {
-      if (ignoreNextPop.current) {
-        ignoreNextPop.current = false;
+      if (ignoredPops.current > 0) {
+        ignoredPops.current--;
         return;
       }
-      historyGuard.current = false;
+      // el navegador ya retrocedió una entrada: la app sube un nivel para coincidir
+      depthRef.current = Math.max(0, depthRef.current - 1);
       goBackRef.current();
     };
     window.addEventListener('popstate', onPop);

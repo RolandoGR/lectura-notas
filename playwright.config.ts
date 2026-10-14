@@ -12,7 +12,8 @@ export default defineConfig({
   reporter: ci ? 'github' : 'list',
   use: {
     baseURL: 'http://localhost:4173',
-    channel: ci ? undefined : 'msedge',
+    // PW_CHROMIUM=1 usa en local el mismo Chromium que en GitHub
+    channel: ci || process.env.PW_CHROMIUM ? undefined : 'msedge',
     // teléfono en horizontal, la orientación habitual de la app
     viewport: { width: 812, height: 375 },
     // el servicio sin conexión guardaría versiones entre pruebas: aquí no hace falta

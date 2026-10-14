@@ -65,6 +65,19 @@ test('el botón Atrás vuelve a la pantalla anterior en vez de salir de la app',
   await expect(page.locator('.home-header')).toBeVisible();
   // seguimos en la app: el historial no se ha salido de ella
   expect(new URL(page.url()).port).toBe('4173');
+
+  // salir con los botones de la app deja el historial a la par: «atrás» sigue subiendo un nivel
+  await page.locator('.card', { hasText: 'Modo inteligente' }).click();
+  await page.locator('.stage', { hasText: 'Grupos fijos' }).click();
+  await page.locator('.hud .icon-button').click();
+  await expect(page.locator('.page-header h1')).toHaveText('Modo inteligente');
+  await page.goBack();
+  await expect(page.locator('.home-header')).toBeVisible();
+  await page.locator('.card', { hasText: 'Reto diario' }).click();
+  await expect(page.locator('.play')).toBeVisible();
+  await page.goBack();
+  await expect(page.locator('.home-header')).toBeVisible();
+  expect(new URL(page.url()).port).toBe('4173');
 });
 
 test('modo manual: pentagrama doble con armadura de dos sostenidos', async ({ page }) => {
