@@ -73,6 +73,8 @@ export interface JourneyState {
   stage: number;
   /** Mejor resultado en estrellas de cada ejercicio con el conjunto de notas actual. */
   stars: number[];
+  /** Momento del último cambio, en milisegundos; 0 si nunca se ha tocado. */
+  updated: number;
 }
 
 /** Canción añadida por el usuario; el texto usa el formato de letras y octavas. */
@@ -92,9 +94,14 @@ export interface Progress {
   /** Días en que se completó la sesión guiada. */
   sessions: Record<string, true>;
   customSongs: CustomSong[];
+  /** Canciones propias borradas: se recuerdan para que no reaparezcan desde otro dispositivo. */
+  deletedSongs: string[];
+  /** Momento del último reinicio del progreso; 0 si nunca se ha reiniciado. */
+  epoch: number;
 }
 
 const SETTINGS_KEY = 'srn.settings.v1';
+const SYNC_KEY = 'srn.sync.v1';
 const PROGRESS_KEY = 'srn.progress.v2';
 
 // Repaso espaciado: días hasta el siguiente repaso según la caja.
@@ -115,8 +122,8 @@ export function staffNotes(clef: ClefId): number[] {
   return Array.from({ length: 9 }, (_, pos) => CLEFS[clef].bottomLine + pos);
 }
 
-export function newJourney(clef: ClefId, added = initialNotes(clef)): JourneyState {
-  return { added, stage: 0, stars: STAGES.map(() => 0) };
+export function newJourney(clef: ClefId, added = initialNotes(clef), updated = 0): JourneyState {
+  return { added, stage: 0, stars: STAGES.map(() => 0), updated };
 }
 
 export function defaultSettings(): Settings {
@@ -154,6 +161,8 @@ export function defaultProgress(): Progress {
     songs: {},
     sessions: {},
     customSongs: [],
+    deletedSongs: [],
+    epoch: 0,
   };
 }
 
@@ -200,9 +209,12 @@ function normalizeProgress(saved: Partial<Progress>): Progress {
     songs: { ...saved.songs },
     sessions: { ...saved.sessions },
     customSongs: [...(saved.customSongs ?? [])],
+    deletedSongs: [...(saved.deletedSongs ?? [])],
+    epoch: saved.epoch ?? 0,
   };
   // datos guardados por versiones anteriores: se completan los campos que no existían
   for (const clef of CLEF_IDS) {
+    progress.journey[clef].updated ??= 0;
     for (const stat of Object.values(progress.notes[clef])) {
       stat.ms ??= 0;
       stat.box ??= 0;
@@ -338,12 +350,19 @@ export function dailyScore(result: DailyResult): number {
  * cuentas: es seguro importar la misma copia varias veces o en cualquier orden.
  */
 export function mergeProgress(a: Progress, b: Progress): Progress {
+  // Reiniciar el progreso abre una época nueva: lo anterior no vuelve aunque otro dispositivo aún lo tenga.
+  if (a.epoch !== b.epoch) return a.epoch > b.epoch ? a : b;
+
   const out = defaultProgress();
+  out.epoch = a.epoch;
   for (const clef of CLEF_IDS) {
     const ja = a.journey[clef];
     const jb = b.journey[clef];
+    // Modo inteligente: gana el cambio más reciente (así quitar una nota no se deshace desde el otro
+    // dispositivo); sin fechas que comparar, el que más ha avanzado.
     const bAhead = jb.added.length > ja.added.length || (jb.added.length === ja.added.length && jb.stage > ja.stage);
-    out.journey[clef] = bAhead ? jb : ja;
+    const bWins = jb.updated !== ja.updated ? jb.updated > ja.updated : bAhead;
+    out.journey[clef] = bWins ? jb : ja;
 
     const steps = new Set([...Object.keys(a.notes[clef]), ...Object.keys(b.notes[clef])].map(Number));
     for (const step of steps) {
@@ -362,11 +381,16 @@ export function mergeProgress(a: Progress, b: Progress): Progress {
     const db = b.days[date];
     out.days[date] = !da || (db && db.correct + db.wrong > da.correct + da.wrong) ? db : da;
   }
-  for (const id of new Set([...Object.keys(a.songs), ...Object.keys(b.songs)])) {
-    out.songs[id] = Math.max(a.songs[id] ?? 0, b.songs[id] ?? 0);
-  }
   out.sessions = { ...a.sessions, ...b.sessions };
-  out.customSongs = [...a.customSongs, ...b.customSongs.filter((song) => !a.customSongs.some((mine) => mine.id === song.id))];
+
+  // Una canción propia borrada en un dispositivo queda borrada en todos.
+  out.deletedSongs = [...new Set([...a.deletedSongs, ...b.deletedSongs])];
+  out.customSongs = [...a.customSongs, ...b.customSongs.filter((song) => !a.customSongs.some((mine) => mine.id === song.id))].filter(
+    (song) => !out.deletedSongs.includes(song.id),
+  );
+  for (const id of new Set([...Object.keys(a.songs), ...Object.keys(b.songs)])) {
+    if (!out.deletedSongs.includes(id)) out.songs[id] = Math.max(a.songs[id] ?? 0, b.songs[id] ?? 0);
+  }
   return out;
 }
 
@@ -385,5 +409,23 @@ export function importBackup(text: string): Progress | null {
     return normalizeProgress(data.progress);
   } catch {
     return null;
+  }
+}
+
+/** Si este dispositivo tiene activada la sincronización (alguien inició sesión en él). */
+export function syncEnabled(): boolean {
+  try {
+    return localStorage.getItem(SYNC_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
+export function setSyncEnabled(enabled: boolean): void {
+  try {
+    if (enabled) localStorage.setItem(SYNC_KEY, '1');
+    else localStorage.removeItem(SYNC_KEY);
+  } catch {
+    // sin almacenamiento: habrá que iniciar sesión cada vez
   }
 }

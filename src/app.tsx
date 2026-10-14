@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'preact/hooks';
+import { useEffect, useRef, useState } from 'preact/hooks';
 import { CLEFS, CLEF_IDS, clefRange, noteNameWithOctave } from './music/pitch';
 import type { ClefId } from './music/pitch';
 import { STAGES, journeyBpm, journeyDifficulty, starsFor } from './music/program';
@@ -6,6 +6,8 @@ import { fitSong } from './music/songs';
 import type { Song } from './music/songs';
 import type { SessionConfig } from './game/session';
 import { loadPiano, playFanfare, vibrate } from './audio';
+import { pullProgress, pushProgress, signIn, signOut, syncAvailable, watchUser } from './sync';
+import type { SyncUser } from './sync';
 import {
   dailyScore,
   dateKey,
@@ -13,19 +15,22 @@ import {
   dueNotes,
   loadProgress,
   loadSettings,
+  mergeProgress,
   newJourney,
   noteWeights,
   recordDay,
   recordNote,
   saveProgress,
   saveSettings,
+  setSyncEnabled,
   slowestNotes,
+  syncEnabled,
 } from './storage';
 import type { Settings } from './storage';
 import { Exercise } from './ui/Exercise';
 import type { Summary } from './ui/Exercise';
 import { ChooseNote, Home, Journey, Manual, ProgressScreen, Results, SettingsScreen, Songs } from './ui/screens';
-import type { ResultAction } from './ui/screens';
+import type { ResultAction, SyncState } from './ui/screens';
 
 type Source =
   | { type: 'journey'; clef: ClefId; stage: number }
@@ -65,6 +70,8 @@ const SESSION_PARTS = [
 // Cuánto más salen en la sesión las notas lentas (calentamiento) y las que toca repasar.
 const SESSION_EMPHASIS = 4;
 const WARM_UP_NOTES = 3;
+// Tras guardar un cambio se espera esto antes de subirlo, para agrupar varios seguidos.
+const SYNC_DELAY_MS = 2500;
 
 let runCounter = 0;
 const randomSeed = () => Math.floor(Math.random() * 2 ** 31);
@@ -100,6 +107,95 @@ export function App() {
     return () => window.removeEventListener('pointerdown', loadPiano);
   }, []);
 
+  // --- Sincronización entre dispositivos -------------------------------------------------
+  const [syncUser, setSyncUser] = useState<SyncUser | null>(null);
+  const [syncState, setSyncState] = useState<SyncState>('idle');
+  const [syncedAt, setSyncedAt] = useState<Date | null>(null);
+  // Las funciones de sincronización corren fuera del ciclo de dibujo: leen lo último por referencia.
+  const progressRef = useRef(progress);
+  progressRef.current = progress;
+  const syncUserRef = useRef<SyncUser | null>(null);
+  const syncBusy = useRef(false);
+  const syncTimer = useRef(0);
+  const stopWatching = useRef<(() => void) | null>(null);
+
+  /** Baja lo que haya en la nube, lo combina con lo local y sube el resultado si aporta algo. */
+  const syncNow = async () => {
+    const user = syncUserRef.current;
+    if (!user || syncBusy.current) return;
+    syncBusy.current = true;
+    setSyncState('syncing');
+    try {
+      const remote = await pullProgress(user.uid);
+      const local = progressRef.current;
+      const merged = remote ? mergeProgress(local, remote) : local;
+      if (JSON.stringify(merged) !== JSON.stringify(local)) {
+        saveProgress(merged);
+        progressRef.current = merged;
+        setProgress(merged);
+      }
+      if (!remote || JSON.stringify(merged) !== JSON.stringify(remote)) await pushProgress(user.uid, merged);
+      setSyncedAt(new Date());
+      setSyncState('done');
+    } catch {
+      setSyncState('error');
+    } finally {
+      syncBusy.current = false;
+    }
+  };
+  const scheduleSync = () => {
+    clearTimeout(syncTimer.current);
+    syncTimer.current = window.setTimeout(() => void syncNow(), SYNC_DELAY_MS);
+  };
+
+  /** Empieza a seguir la sesión de Google (carga Firebase la primera vez). */
+  const watchSession = async () => {
+    if (stopWatching.current) return;
+    stopWatching.current = () => {};
+    try {
+      stopWatching.current = await watchUser((user) => {
+        syncUserRef.current = user;
+        setSyncUser(user);
+        if (user) void syncNow();
+      });
+    } catch {
+      stopWatching.current = null;
+      setSyncState('error');
+    }
+  };
+  const connect = async () => {
+    setSyncEnabled(true);
+    await watchSession();
+    try {
+      await signIn();
+    } catch {
+      setSyncState('error');
+    }
+  };
+  const disconnect = async () => {
+    setSyncEnabled(false);
+    await signOut();
+    setSyncState('idle');
+    setSyncedAt(null);
+  };
+
+  useEffect(() => {
+    // Firebase solo se carga al arrancar si este dispositivo ya inició sesión alguna vez.
+    if (syncAvailable && syncEnabled()) void watchSession();
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') void syncNow();
+    };
+    const onOnline = () => void syncNow();
+    document.addEventListener('visibilitychange', onVisible);
+    window.addEventListener('online', onOnline);
+    return () => {
+      document.removeEventListener('visibilitychange', onVisible);
+      window.removeEventListener('online', onOnline);
+      clearTimeout(syncTimer.current);
+      stopWatching.current?.();
+    };
+  }, []);
+
   const updateSettings = (next: Settings) => {
     setSettings(next);
     saveSettings(next);
@@ -107,6 +203,7 @@ export function App() {
   const commitProgress = () => {
     saveProgress(progress);
     setProgress({ ...progress });
+    scheduleSync();
   };
   const goHome = () => setScreen({ name: 'home' });
   const goJourney = () => setScreen({ name: 'journey' });
@@ -153,7 +250,7 @@ export function App() {
 
   // Cambiar el conjunto de notas empieza una ronda nueva con ese conjunto.
   const setJourneyNotes = (clef: ClefId, added: number[]) => {
-    progress.journey[clef] = newJourney(clef, added);
+    progress.journey[clef] = newJourney(clef, added, Date.now());
     commitProgress();
   };
   const addJourneyNote = (clef: ClefId, step: number) => setJourneyNotes(clef, [...progress.journey[clef].added, step]);
@@ -290,6 +387,7 @@ export function App() {
     if (source.type === 'journey') {
       const state = progress.journey[source.clef];
       state.stars[source.stage] = Math.max(state.stars[source.stage] ?? 0, stars);
+      state.updated = Date.now();
       if (summary.reason === 'goal') state.stage = Math.max(state.stage, source.stage + 1);
     } else if (source.type === 'daily' && summary.reason === 'goal') {
       const previous = progress.daily[source.date];
@@ -461,6 +559,7 @@ export function App() {
         }}
         onDelete={(id) => {
           progress.customSongs = progress.customSongs.filter((song) => song.id !== id);
+          progress.deletedSongs.push(id);
           delete progress.songs[id];
           commitProgress();
         }}
@@ -482,11 +581,23 @@ export function App() {
         onImport={(merged) => {
           saveProgress(merged);
           setProgress(merged);
+          scheduleSync();
         }}
         onReset={() => {
-          const fresh = defaultProgress();
+          // la marca de reinicio hace que el borrado llegue también a los demás dispositivos
+          const fresh = { ...defaultProgress(), epoch: Date.now() };
           saveProgress(fresh);
           setProgress(fresh);
+          scheduleSync();
+        }}
+        sync={{
+          available: syncAvailable,
+          user: syncUser,
+          state: syncState,
+          syncedAt,
+          onConnect: () => void connect(),
+          onDisconnect: () => void disconnect(),
+          onSyncNow: () => void syncNow(),
         }}
         onBack={goHome}
       />

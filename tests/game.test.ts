@@ -461,3 +461,50 @@ describe('copia de seguridad', () => {
     expect(importBackup('esto no es JSON')).toBeNull();
   });
 });
+
+describe('sincronización: combinar dispositivos', () => {
+  it('en el modo inteligente gana el cambio más reciente, aunque tenga menos notas', () => {
+    const pc = defaultProgress();
+    pc.journey.treble = { ...pc.journey.treble, added: [32, 33, 34, 31, 35], updated: 1000 };
+    const phone = defaultProgress();
+    // en el teléfono se quitó después la última nota
+    phone.journey.treble = { ...phone.journey.treble, added: [32, 33, 34, 31], updated: 2000 };
+    expect(mergeProgress(pc, phone).journey.treble.added).toEqual([32, 33, 34, 31]);
+    expect(mergeProgress(phone, pc).journey.treble.added).toEqual([32, 33, 34, 31]);
+  });
+
+  it('un reinicio del progreso se impone a los datos anteriores de otro dispositivo', () => {
+    const old = defaultProgress();
+    old.songs.mary = 3;
+    old.journey.treble.added.push(31);
+    const reset = { ...defaultProgress(), epoch: 5000 };
+    expect(mergeProgress(old, reset)).toBe(reset);
+    expect(mergeProgress(reset, old)).toBe(reset);
+  });
+
+  it('una canción propia borrada no reaparece desde el otro dispositivo', () => {
+    const pc = defaultProgress();
+    pc.customSongs.push({ id: 'mia-1', title: 'Vieja', text: 'C4' }, { id: 'mia-2', title: 'Sigue', text: 'D4' });
+    pc.songs['mia-1'] = 3;
+    const phone = defaultProgress();
+    phone.customSongs.push({ id: 'mia-2', title: 'Sigue', text: 'D4' });
+    phone.deletedSongs.push('mia-1');
+    const merged = mergeProgress(pc, phone);
+    expect(merged.customSongs.map((song) => song.id)).toEqual(['mia-2']);
+    expect(merged.songs['mia-1']).toBeUndefined();
+    expect(merged.deletedSongs).toEqual(['mia-1']);
+  });
+
+  it('una copia antigua, sin los campos nuevos, se sigue pudiendo importar', () => {
+    const legacy = JSON.stringify({
+      app: 'lectura-notas',
+      version: 1,
+      progress: { journey: { treble: { added: [32, 33, 34], stage: 1, stars: [2] } }, songs: { mary: 1 } },
+    });
+    const imported = importBackup(legacy)!;
+    expect(imported.epoch).toBe(0);
+    expect(imported.deletedSongs).toEqual([]);
+    expect(imported.journey.treble.updated).toBe(0);
+    expect(mergeProgress(defaultProgress(), imported).songs.mary).toBe(1);
+  });
+});

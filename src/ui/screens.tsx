@@ -876,9 +876,30 @@ export function Results({ title, summary, notation, stars, review, primary, seco
   );
 }
 
+export type SyncState = 'idle' | 'syncing' | 'done' | 'error';
+
+export interface SyncPanel {
+  /** false mientras el proyecto de Firebase no esté configurado en la app. */
+  available: boolean;
+  user: { email: string | null } | null;
+  state: SyncState;
+  syncedAt: Date | null;
+  onConnect: () => void;
+  onDisconnect: () => void;
+  onSyncNow: () => void;
+}
+
+const SYNC_TEXT: Record<SyncState, string> = {
+  idle: 'Conectada.',
+  syncing: 'Sincronizando…',
+  done: 'Al día.',
+  error: 'No se pudo sincronizar. Se reintentará sola cuando haya conexión.',
+};
+
 interface SettingsProps {
   settings: Settings;
   progress: Progress;
+  sync: SyncPanel;
   onChange: (settings: Settings) => void;
   /** Recibe el progreso ya combinado con el de la copia importada. */
   onImport: (progress: Progress) => void;
@@ -886,7 +907,7 @@ interface SettingsProps {
   onBack: () => void;
 }
 
-export function SettingsScreen({ settings, progress, onChange, onImport, onReset, onBack }: SettingsProps) {
+export function SettingsScreen({ settings, progress, sync, onChange, onImport, onReset, onBack }: SettingsProps) {
   const [confirming, setConfirming] = useState(false);
   const [backupNote, setBackupNote] = useState<string | null>(null);
 
@@ -956,6 +977,35 @@ export function SettingsScreen({ settings, progress, onChange, onImport, onReset
         checked={settings.keyLabels}
         onChange={(keyLabels) => onChange({ ...settings, keyLabels })}
       />
+      <Field label="Sincronización">
+        {!sync.available && <p class="hint">Aún sin configurar en esta versión de la app.</p>}
+        {sync.available && !sync.user && (
+          <>
+            <p class="hint">
+              Inicia sesión con tu cuenta de Google en el ordenador y en el teléfono, y el progreso se combina solo entre
+              los dos.
+            </p>
+            <button type="button" class="primary" onClick={sync.onConnect}>
+              Iniciar sesión con Google
+            </button>
+            {sync.state === 'error' && <p class="hint hint-warn">No se pudo iniciar sesión. Inténtalo de nuevo.</p>}
+          </>
+        )}
+        {sync.available && sync.user && (
+          <>
+            <p class={sync.state === 'error' ? 'hint hint-warn' : 'hint'}>
+              Sesión de {sync.user.email ?? 'Google'}. {SYNC_TEXT[sync.state]}
+              {sync.syncedAt && sync.state !== 'syncing' && ` Última vez: ${sync.syncedAt.toLocaleTimeString()}.`}
+            </p>
+            <button type="button" class="secondary" onClick={sync.onSyncNow}>
+              Sincronizar ahora
+            </button>
+            <button type="button" class="secondary" onClick={sync.onDisconnect}>
+              Cerrar sesión
+            </button>
+          </>
+        )}
+      </Field>
       <Field label="Copia de seguridad">
         <p class="hint">
           Para pasar tu progreso entre el ordenador y el teléfono: exporta en uno e importa en el otro. Importar combina,
