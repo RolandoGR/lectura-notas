@@ -5,3 +5,6 @@ dev-dist/
 reference/
 # configuración local de herramientas
 .claude/
+# resultados de las pruebas de pantallas
+test-results/
+playwright-report/

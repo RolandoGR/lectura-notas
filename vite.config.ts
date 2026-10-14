@@ -27,7 +27,7 @@ export default defineConfig({
       },
       workbox: {
         // incluye las muestras de piano para que suenen también sin conexión
-        globPatterns: ['**/*.{js,css,html,woff2,svg,png,mp3}'],
+        globPatterns: ['**/*.{js,css,html,woff,svg,png,mp3}'],
       },
     }),
   ],

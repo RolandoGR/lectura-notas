@@ -41,6 +41,7 @@ export interface Settings {
 }
 
 export interface NoteStat {
+  /** Total de respuestas y de fallos, sumando todos los dispositivos. */
   seen: number;
   wrong: number;
   /** Tiempo de respuesta habitual en milisegundos (media móvil); 0 si aún no hay datos. */
@@ -51,6 +52,13 @@ export interface NoteStat {
   due: string;
   /** Último día en que subió de caja: como mucho una subida al día. */
   promoted: string;
+  /**
+   * Respuestas y fallos de cada dispositivo. Cada uno solo aumenta los suyos, así que al combinar
+   * dos copias se toma el mayor de cada dispositivo y se suman: nada se cuenta dos veces ni se pierde.
+   */
+  byDevice: Record<string, [seen: number, wrong: number]>;
+  /** Momento de la última respuesta (ms): al combinar, el tiempo habitual y el repaso salen de la más reciente. */
+  at: number;
 }
 
 export interface DailyResult {
@@ -63,6 +71,8 @@ export interface DayStat {
   correct: number;
   wrong: number;
   ms: number;
+  /** Lo de cada dispositivo, para sumar sin duplicar al combinar (como en las notas). */
+  byDevice: Record<string, [correct: number, wrong: number, ms: number]>;
 }
 
 /** Avance del modo inteligente en una clave. */
@@ -101,6 +111,7 @@ export interface Progress {
 }
 
 const SETTINGS_KEY = 'srn.settings.v1';
+const DEVICE_KEY = 'srn.device.v1';
 const SYNC_KEY = 'srn.sync.v1';
 const PROGRESS_KEY = 'srn.progress.v2';
 
@@ -220,7 +231,12 @@ function normalizeProgress(saved: Partial<Progress>): Progress {
       stat.box ??= 0;
       stat.due ??= '';
       stat.promoted ??= '';
+      stat.byDevice ??= { [LEGACY_DEVICE]: [stat.seen, stat.wrong] };
+      stat.at ??= 0;
     }
+  }
+  for (const day of Object.values(progress.days)) {
+    day.byDevice ??= { [LEGACY_DEVICE]: [day.correct, day.wrong, day.ms] };
   }
   return progress;
 }
@@ -247,9 +263,30 @@ function addDays(date: Date, days: number): Date {
 }
 
 /** Anota una respuesta: precisión, tiempo habitual y cuándo toca repasar la nota. */
-export function recordNote(progress: Progress, clef: ClefId, step: number, ok: boolean, ms: number, now: Date): void {
+export function recordNote(
+  progress: Progress,
+  clef: ClefId,
+  step: number,
+  ok: boolean,
+  ms: number,
+  now: Date,
+  device = deviceId(),
+): void {
   const today = dateKey(now);
-  const stat = (progress.notes[clef][step] ??= { seen: 0, wrong: 0, ms: 0, box: 0, due: today, promoted: '' });
+  const stat = (progress.notes[clef][step] ??= {
+    seen: 0,
+    wrong: 0,
+    ms: 0,
+    box: 0,
+    due: today,
+    promoted: '',
+    byDevice: {},
+    at: 0,
+  });
+  const mine = (stat.byDevice[device] ??= [0, 0]);
+  mine[0]++;
+  if (!ok) mine[1]++;
+  stat.at = now.getTime();
   stat.seen++;
   stat.ms = stat.ms > 0 ? Math.round(stat.ms + (ms - stat.ms) * TIME_SMOOTHING) : Math.round(ms);
   if (!ok) {
@@ -293,14 +330,25 @@ export function slowestNotes(progress: Progress, clef: ClefId, pool: number[], c
 }
 
 /** Suma un ejercicio a lo practicado en el día. */
-export function recordDay(progress: Progress, now: Date, correct: number, wrong: number, ms: number): void {
-  const day = (progress.days[dateKey(now)] ??= { correct: 0, wrong: 0, ms: 0 });
+export function recordDay(
+  progress: Progress,
+  now: Date,
+  correct: number,
+  wrong: number,
+  ms: number,
+  device = deviceId(),
+): void {
+  const day = (progress.days[dateKey(now)] ??= { correct: 0, wrong: 0, ms: 0, byDevice: {} });
+  const mine = (day.byDevice[device] ??= [0, 0, 0]);
+  mine[0] += correct;
+  mine[1] += wrong;
+  mine[2] += Math.round(ms);
   day.correct += correct;
   day.wrong += wrong;
   day.ms += Math.round(ms);
 }
 
-export interface WeekStat extends DayStat {
+export interface WeekStat extends Omit<DayStat, 'byDevice'> {
   /** Lunes de la semana. */
   start: string;
 }
@@ -368,7 +416,7 @@ export function mergeProgress(a: Progress, b: Progress): Progress {
     for (const step of steps) {
       const sa = a.notes[clef][step];
       const sb = b.notes[clef][step];
-      out.notes[clef][step] = !sa || (sb && sb.seen > sa.seen) ? sb : sa;
+      out.notes[clef][step] = !sa ? sb : !sb ? sa : mergeNoteStats(sa, sb);
     }
   }
   for (const date of new Set([...Object.keys(a.daily), ...Object.keys(b.daily)])) {
@@ -379,7 +427,7 @@ export function mergeProgress(a: Progress, b: Progress): Progress {
   for (const date of new Set([...Object.keys(a.days), ...Object.keys(b.days)])) {
     const da = a.days[date];
     const db = b.days[date];
-    out.days[date] = !da || (db && db.correct + db.wrong > da.correct + da.wrong) ? db : da;
+    out.days[date] = !da ? db : !db ? da : mergeDayStats(da, db);
   }
   out.sessions = { ...a.sessions, ...b.sessions };
 
@@ -428,4 +476,59 @@ export function setSyncEnabled(enabled: boolean): void {
   } catch {
     // sin almacenamiento: habrá que iniciar sesión cada vez
   }
+}
+
+// Datos de antes de que existiera el reparto por dispositivo: se atribuyen a este «dispositivo»
+// común. Si los dos dispositivos los tienen, al combinar se toma el mayor, como se hacía antes.
+export const LEGACY_DEVICE = 'antes';
+let currentDevice: string | null = null;
+
+/** Identificador de este dispositivo: se crea la primera vez y se guarda. */
+export function deviceId(): string {
+  if (currentDevice) return currentDevice;
+  try {
+    let id = localStorage.getItem(DEVICE_KEY);
+    if (!id) {
+      id = crypto.randomUUID?.() ?? Math.random().toString(36).slice(2);
+      localStorage.setItem(DEVICE_KEY, id);
+    }
+    currentDevice = id;
+  } catch {
+    currentDevice = 'este'; // sin almacenamiento (o en las pruebas): un nombre fijo
+  }
+  return currentDevice;
+}
+
+/** Para cada dispositivo, la cuenta mayor (cada uno solo aumenta la suya). */
+function mergeCounts<T extends number[]>(a: Record<string, T>, b: Record<string, T>): Record<string, T> {
+  const out: Record<string, T> = {};
+  for (const device of new Set([...Object.keys(a), ...Object.keys(b)])) {
+    const x = a[device];
+    const y = b[device];
+    out[device] = !x ? y : !y ? x : y[0] > x[0] ? y : x;
+  }
+  return out;
+}
+
+function mergeNoteStats(a: NoteStat, b: NoteStat): NoteStat {
+  const byDevice = mergeCounts(a.byDevice, b.byDevice);
+  const counts = Object.values(byDevice);
+  const latest = b.at > a.at ? b : a;
+  return {
+    ...latest,
+    seen: counts.reduce((sum, [seen]) => sum + seen, 0),
+    wrong: counts.reduce((sum, [, wrong]) => sum + wrong, 0),
+    byDevice,
+  };
+}
+
+function mergeDayStats(a: DayStat, b: DayStat): DayStat {
+  const byDevice = mergeCounts(a.byDevice, b.byDevice);
+  const counts = Object.values(byDevice);
+  return {
+    correct: counts.reduce((sum, [correct]) => sum + correct, 0),
+    wrong: counts.reduce((sum, [, wrong]) => sum + wrong, 0),
+    ms: counts.reduce((sum, [, , ms]) => sum + ms, 0),
+    byDevice,
+  };
 }

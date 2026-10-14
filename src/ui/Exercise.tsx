@@ -9,7 +9,7 @@ import { MicInput } from '../mic';
 import type { InputMode, Settings } from '../storage';
 import { Keyboard } from './Keyboard';
 import type { Flash } from './Keyboard';
-import { STAFF_WIDTH, Staff, notesStart, staffViewHeight } from './Staff';
+import { FADE_IN_LENGTH, STAFF_WIDTH, Staff, notesStart, staffViewHeight } from './Staff';
 import type { NoteState, ReferenceNote, StaffNote } from './Staff';
 import { CloseIcon, KeysIcon, MicIcon, ReplayIcon } from './icons';
 
@@ -203,6 +203,31 @@ export function Exercise({ config, title, settings, onNote, onInputChange, onFin
   const answerName = (item: Item) =>
     item.second ? `${intervalNumber(item.pitch.step, item.second.step)}ª` : noteName(item.pitch, notation);
 
+  // La pantalla no se apaga mientras dura el ejercicio. El sistema retira el permiso cuando la app
+  // pasa a segundo plano, así que se vuelve a pedir al regresar.
+  useEffect(() => {
+    let lock: WakeLockSentinel | null = null;
+    let active = true;
+    const request = async () => {
+      try {
+        lock = (await navigator.wakeLock?.request('screen')) ?? null;
+      } catch {
+        lock = null; // sin permiso o sin soporte: el ejercicio sigue igual
+      }
+      if (!active) void lock?.release();
+    };
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') void request();
+    };
+    void request();
+    document.addEventListener('visibilitychange', onVisible);
+    return () => {
+      active = false;
+      document.removeEventListener('visibilitychange', onVisible);
+      void lock?.release();
+    };
+  }, []);
+
   // Reloj y límite de tiempo.
   useEffect(() => {
     const id = window.setInterval(() => {
@@ -258,6 +283,7 @@ export function Exercise({ config, title, settings, onNote, onInputChange, onFin
     let speed = 0;
     let halted = false;
     let lastBeat = -1;
+    let solidIndex = -1;
     const stopX = start + STOP_GAP;
     const pulseSpeed = (MOVE_SPACING * (config.bpm ?? DEFAULT_BPM)) / 60;
 
@@ -302,6 +328,12 @@ export function Exercise({ config, title, settings, onNote, onInputChange, onFin
         session.ensure(10);
         if (isPulse) advancePulse(dt);
         else advanceMoving(dt);
+        // El tiempo de respuesta cuenta desde que la nota pendiente se ve entera (ya pasó el tramo
+        // en que aparece difuminada), no desde la respuesta anterior.
+        if (solidIndex !== session.cursor && movingX(session.cursor) <= widthRef.current - 6 - FADE_IN_LENGTH) {
+          solidIndex = session.cursor;
+          currentSince.current = Math.max(currentSince.current, now);
+        }
       }
       scrollRef.current?.setAttribute('transform', `translate(${streamShift()} 0)`);
       frame = requestAnimationFrame(loop);

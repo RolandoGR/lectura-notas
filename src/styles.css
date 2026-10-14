@@ -1,3 +1,11 @@
+/* Símbolos musicales: recorte de Bravura (SIL OFL 1.1) con solo lo que se dibuja; ver
+   scripts/build-font-subset.py y licenses/Bravura-OFL.txt. */
+@font-face {
+  font-family: 'Notas Glifos';
+  src: url('./assets/notas-glifos.woff') format('woff');
+  font-display: block;
+}
+
 /* Tema oscuro por defecto, con color en los acentos; el claro se activa desde Ajustes. */
 :root {
   --bg: #14161b;
@@ -764,7 +772,7 @@ h1 {
 }
 
 .glyph {
-  font-family: Bravura, serif;
+  font-family: 'Notas Glifos', serif;
   font-size: 40px;
   fill: currentColor;
 }

@@ -7,7 +7,8 @@
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
-    "test": "vitest run"
+    "test": "vitest run",
+    "test:e2e": "playwright test"
   },
   "dependencies": {
     "firebase": "^13.0.0",
@@ -15,6 +16,7 @@
   },
   "devDependencies": {
     "@audio-samples/piano-mp3-velocity8": "^1.0.5",
+    "@playwright/test": "^1.64.0",
     "@preact/preset-vite": "^2.10.6",
     "@vexflow-fonts/bravura": "^1.0.2",
     "typescript": "^7.0.2",

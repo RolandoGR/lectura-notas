@@ -73,6 +73,9 @@ const WARM_UP_NOTES = 3;
 // Tras guardar un cambio se espera esto antes de subirlo, para agrupar varios seguidos.
 const SYNC_DELAY_MS = 2500;
 
+// Pantalla a la que se vuelve al salir de un ejercicio o de sus resultados, según su origen.
+const EXIT_SCREEN = { journey: 'journey', manual: 'manual', song: 'songs', daily: 'home', session: 'home' } as const;
+
 let runCounter = 0;
 const randomSeed = () => Math.floor(Math.random() * 2 ** 31);
 
@@ -208,6 +211,49 @@ export function App() {
   const goHome = () => setScreen({ name: 'home' });
   const goJourney = () => setScreen({ name: 'journey' });
   const play = (run: Omit<Run, 'id'>) => setScreen({ name: 'play', run: { ...run, id: ++runCounter } });
+
+  // --- Botón Atrás del teléfono (y del navegador) ------------------------------------------
+  // Mientras no se está en el inicio hay una entrada propia en el historial: «atrás» la consume y
+  // la app vuelve a la pantalla anterior en lugar de cerrarse. Al llegar al inicio se retira.
+  const historyGuard = useRef(false);
+  const ignoreNextPop = useRef(false);
+  const goBack = () => {
+    if (screen.name === 'play') {
+      saveProgress(progress);
+      setScreen({ name: EXIT_SCREEN[screen.run.source.type] });
+    } else if (screen.name === 'results') {
+      setScreen({ name: EXIT_SCREEN[screen.run.source.type] });
+    } else if (screen.name === 'choose') {
+      goJourney();
+    } else {
+      goHome();
+    }
+  };
+  const goBackRef = useRef(goBack);
+  goBackRef.current = goBack;
+  useEffect(() => {
+    const atHome = screen.name === 'home';
+    if (!atHome && !historyGuard.current) {
+      history.pushState({ lecturaNotas: true }, '');
+      historyGuard.current = true;
+    } else if (atHome && historyGuard.current) {
+      historyGuard.current = false;
+      ignoreNextPop.current = true;
+      history.back();
+    }
+  }, [screen.name]);
+  useEffect(() => {
+    const onPop = () => {
+      if (ignoreNextPop.current) {
+        ignoreNextPop.current = false;
+        return;
+      }
+      historyGuard.current = false;
+      goBackRef.current();
+    };
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+  }, []);
 
   /** Ajustes comunes de un ejercicio con clave sobre las notas del modo inteligente. */
   const journeyConfig = (clef: ClefId): SessionConfig => {
@@ -410,7 +456,6 @@ export function App() {
 
   if (screen.name === 'play') {
     const run = screen.run;
-    const exits = { journey: 'journey', manual: 'manual', song: 'songs', daily: 'home', session: 'home' } as const;
     return (
       <Exercise
         key={run.id}
@@ -422,7 +467,7 @@ export function App() {
         onFinish={(summary) => handleFinish(run, summary)}
         onExit={() => {
           saveProgress(progress);
-          setScreen({ name: exits[run.source.type] });
+          setScreen({ name: EXIT_SCREEN[run.source.type] });
         }}
       />
     );

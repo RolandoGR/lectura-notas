@@ -23,7 +23,7 @@ const GRAND_CLEFS: ClefId[] = ['treble', 'bass'];
 
 // Notas en movimiento: entran casi transparentes y se van haciendo sólidas a lo largo de este tramo;
 // al salir por la izquierda se desvanecen en un tramo corto.
-const FADE_IN_LENGTH = 90;
+export const FADE_IN_LENGTH = 90;
 const FADE_IN_START = 0.08;
 const FADE_OUT_LENGTH = 10;
 

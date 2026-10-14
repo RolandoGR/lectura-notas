@@ -323,7 +323,7 @@ describe('repaso espaciado y progreso', () => {
     const progress = defaultProgress();
     recordNote(progress, 'treble', 32, true, 900, day('2026-03-02'));
     recordNote(progress, 'treble', 32, true, 900, day('2026-03-02'));
-    expect(progress.notes.treble[32]).toMatchObject({ seen: 2, wrong: 0, box: 1, due: '2026-03-03' });
+    expect(progress.notes.treble[32]).toMatchObject({ seen: 2, wrong: 0, box: 1, due: '2026-03-03', byDevice: { este: [2, 0] } });
     recordNote(progress, 'treble', 32, true, 900, day('2026-03-03'));
     expect(progress.notes.treble[32]).toMatchObject({ box: 2, due: '2026-03-05' });
   });
@@ -364,7 +364,7 @@ describe('repaso espaciado y progreso', () => {
     recordDay(progress, day('2026-03-08'), 10, 0, 30000); // domingo de la misma semana
     recordDay(progress, day('2026-03-09'), 4, 1, 10000); // lunes siguiente
     const weeks = weeklyStats(progress, day('2026-03-10'), 2);
-    expect(weeks).toEqual([
+    expect(weeks.map(({ start, correct, wrong, ms }) => ({ start, correct, wrong, ms }))).toEqual([
       { start: '2026-03-02', correct: 30, wrong: 5, ms: 90000 },
       { start: '2026-03-09', correct: 4, wrong: 1, ms: 10000 },
     ]);
@@ -506,5 +506,55 @@ describe('sincronización: combinar dispositivos', () => {
     expect(imported.deletedSongs).toEqual([]);
     expect(imported.journey.treble.updated).toBe(0);
     expect(mergeProgress(defaultProgress(), imported).songs.mary).toBe(1);
+  });
+});
+
+describe('sincronización: cuentas por dispositivo', () => {
+  const day = (iso: string) => new Date(`${iso}T12:00:00`);
+
+  it('lo practicado en dos dispositivos se suma al combinar, sin duplicar si se repite', () => {
+    const pc = defaultProgress();
+    const phone = defaultProgress();
+    for (let i = 0; i < 5; i++) recordNote(pc, 'treble', 32, i > 0, 900, day('2026-03-02'), 'pc');
+    for (let i = 0; i < 3; i++) recordNote(phone, 'treble', 32, true, 1500, day('2026-03-03'), 'tel');
+    recordDay(pc, day('2026-03-03'), 10, 2, 30000, 'pc');
+    recordDay(phone, day('2026-03-03'), 6, 1, 20000, 'tel');
+
+    const merged = mergeProgress(pc, phone);
+    expect(merged.notes.treble[32]).toMatchObject({ seen: 8, wrong: 1, byDevice: { pc: [5, 1], tel: [3, 0] } });
+    // el tiempo habitual y el repaso vienen de la respuesta más reciente (la del teléfono)
+    expect(merged.notes.treble[32].ms).toBe(phone.notes.treble[32].ms);
+    expect(merged.days['2026-03-03']).toMatchObject({ correct: 16, wrong: 3, ms: 50000 });
+    expect(mergeProgress(merged, phone)).toEqual(merged);
+    expect(mergeProgress(merged, pc)).toEqual(merged);
+  });
+
+  it('tras combinar, lo nuevo de cada dispositivo vuelve a sumarse', () => {
+    const pc = defaultProgress();
+    const phone = defaultProgress();
+    recordNote(pc, 'treble', 32, true, 900, day('2026-03-02'), 'pc');
+    const synced = mergeProgress(pc, phone);
+    // los dos parten de lo mismo y siguen practicando por separado
+    const pcLater = mergeProgress(synced, defaultProgress());
+    const phoneLater = mergeProgress(synced, defaultProgress());
+    recordNote(pcLater, 'treble', 32, true, 900, day('2026-03-03'), 'pc');
+    recordNote(phoneLater, 'treble', 32, false, 900, day('2026-03-03'), 'tel');
+    expect(mergeProgress(pcLater, phoneLater).notes.treble[32]).toMatchObject({ seen: 3, wrong: 1 });
+  });
+
+  it('las cuentas de versiones anteriores se conservan como de un dispositivo común', () => {
+    const legacy = JSON.stringify({
+      app: 'lectura-notas',
+      version: 1,
+      progress: {
+        notes: { treble: { 32: { seen: 6, wrong: 2, ms: 900, box: 1, due: '2026-03-03', promoted: '2026-03-02' } } },
+        days: { '2026-03-02': { correct: 4, wrong: 2, ms: 9000 } },
+      },
+    });
+    const imported = importBackup(legacy)!;
+    expect(imported.notes.treble[32].byDevice).toEqual({ antes: [6, 2] });
+    expect(imported.days['2026-03-02'].byDevice).toEqual({ antes: [4, 2, 9000] });
+    recordNote(imported, 'treble', 32, true, 900, day('2026-03-04'), 'pc');
+    expect(imported.notes.treble[32]).toMatchObject({ seen: 7, wrong: 2 });
   });
 });
